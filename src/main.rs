@@ -70,7 +70,12 @@ impl<'a> Pool<'a> {
         let mut rng = thread_rng();
         let mut pairs: Vec<Pair> = vec![];
         let mut restart_distribution = false;
+        let mut tentatives = 0;
         loop {  // until we find a correct distribution
+            tentatives += 1;
+            if tentatives > 1000 {
+                panic!("could not make pairs, probably due to recursive exclusions");
+            }
             pairs.clear();
             let mut people = self.people.clone();
             let people_emails: HashSet<&str> = people.iter().map(|ref p| p.email).collect();

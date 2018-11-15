@@ -5,5 +5,5 @@ authors = ["Guewen Baconnier <guewen@gmail.com>"]
 
 [dependencies]
 rand = "0.3"
-lettre = "0.6.1"
+lettre = "0.6.2"
 yaml-rust = "0.3.4"

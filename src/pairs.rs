@@ -1,52 +1,56 @@
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
+
+use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
 
-#[derive(Debug,Clone)]
-pub struct Person<'a> {
-    pub email: &'a str,
-    pub name: &'a str,
-    pub exclude: Vec<&'a str>, // list of emails
+use serde::Deserialize;
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Person {
+    pub email: String,
+    pub name: String,
+    pub exclude: Option<Vec<String>>, // list of emails
 }
 
-impl<'a> Person<'a> {
-    pub fn new(email: &'a str, name: &'a str, exclude: Vec<&'a str>) -> Person<'a> {
+impl Person {
+    pub fn new(email: String, name: String, exclude: Option<Vec<String>>) -> Person {
         Person {
             email: email,
             name: name,
             exclude: exclude,
         }
     }
-
-    pub fn can_give_to(&self, receiver: &'a str) -> bool {
-        !self.exclude.contains(&receiver)
+    pub fn can_give_to(&self, receiver: &Person) -> bool {
+        match &self.exclude {
+            Some(exclude) => !exclude.iter().any(|x| *x == receiver.email),
+            None => true,
+        }
     }
 }
 
-impl<'a> PartialEq for Person<'a> {
+impl PartialEq for Person {
     fn eq(&self, other: &Person) -> bool {
         self.email == other.email
     }
 }
 
-impl<'a> Eq for Person<'a> { }
+impl Eq for Person {}
 
-
-impl<'a> Hash for Person<'a> {
+impl Hash for Person {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.email.hash(state);
     }
 }
 
-
-#[derive(Debug,PartialEq)]
-pub struct Pair<'a> {
-    pub giver: &'a Person<'a>,
-    pub receiver: &'a Person<'a>,
+#[derive(Debug, PartialEq)]
+pub struct Pair {
+    pub giver: Person,
+    pub receiver: Person,
 }
 
-impl<'a> Pair<'a> {
-    pub fn new(giver: &'a Person<'a>, receiver: &'a Person<'a>) -> Pair<'a> {
+impl Pair {
+    pub fn new(giver: Person, receiver: Person) -> Pair {
         Pair {
             giver: giver,
             receiver: receiver,
@@ -54,14 +58,13 @@ impl<'a> Pair<'a> {
     }
 }
 
-
 #[derive(Debug)]
-pub struct Pool<'a> {
-    people: Vec<&'a Person<'a>>,
+pub struct Pool {
+    people: Vec<Person>,
 }
 
-impl<'a> Pool<'a> {
-    pub fn new(people: Vec<&'a Person<'a>>) -> Pool<'a> {
+impl Pool {
+    pub fn new(people: Vec<Person>) -> Pool {
         Pool { people: people }
     }
 
@@ -70,16 +73,18 @@ impl<'a> Pool<'a> {
         let mut pairs: Vec<Pair> = vec![];
         let mut restart_distribution = false;
         let mut tentatives = 0;
-        loop {  // until we find a correct distribution
+        loop {
+            // until we find a correct distribution
             tentatives += 1;
             if tentatives > 1000 {
                 panic!("could not make pairs, probably due to recursive exclusions");
             }
             pairs.clear();
             let mut people = self.people.clone();
-            let people_emails: HashSet<&str> = self.people.iter().map(|ref p| p.email).collect();
+            let people_emails: HashSet<&str> =
+                self.people.iter().map(|ref p| p.email.as_str()).collect();
             let mut consumed: Vec<&Person> = vec![];
-            rng.shuffle(&mut people);
+            people.shuffle(&mut rng);
             let mut givers = people.iter();
             let mut receivers = people.iter().cycle();
             loop {
@@ -91,10 +96,17 @@ impl<'a> Pool<'a> {
                     Some(person) => person,
                     None => break,
                 };
-                let consumed_emails: HashSet<&str> = consumed.iter().map(|ref p| p.email).collect();
-                let mut remaining: HashSet<&str> = people_emails.difference(&consumed_emails).cloned().collect();
-                remaining.remove(person.email);
-                let exclude: HashSet<&str> = person.exclude.iter().cloned().collect();
+                let consumed_emails: HashSet<&str> =
+                    consumed.iter().map(|ref p| p.email.as_str()).collect();
+                let mut remaining: HashSet<&str> = people_emails
+                    .difference(&consumed_emails)
+                    .cloned()
+                    .collect();
+                remaining.remove(&person.email.as_str());
+                let exclude: HashSet<&str> = match &person.exclude {
+                    Some(pexclude) => pexclude.iter().map(|s| s.as_str()).collect(),
+                    None => HashSet::new(),
+                };
                 if remaining.is_subset(&exclude) {
                     // The only remaining candidates are excluded for this person!
                     // we start again the distribution
@@ -103,18 +115,18 @@ impl<'a> Pool<'a> {
                 } else {
                     let receiver: &Person;
                     loop {
-                         match receivers.next() {
+                        match receivers.next() {
                             Some(r) => {
-                                if r != person && person.can_give_to(r.email) && !consumed.contains(&r) {
+                                if r != person && person.can_give_to(&r) && !consumed.contains(&r) {
                                     receiver = r;
                                     break;
                                 }
-                            },
-                            None => unreachable!()
+                            }
+                            None => unreachable!(),
                         }
                     }
                     consumed.push(receiver);
-                    let pair = Pair::new(&person, &receiver);
+                    let pair = Pair::new(person.clone(), receiver.clone());
                     pairs.push(pair);
                 }
             }
@@ -127,17 +139,20 @@ impl<'a> Pool<'a> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn exclusion() {
-        let a = Person::new("a@example.com", "A", vec!["b@example.com"]);
-        let b = Person::new("b@example.com", "B", vec![]);
-        assert!(a.can_give_to(b.email) == false);
-        assert!(b.can_give_to(a.email) == true);
+        let a = Person::new(
+            "a@example.com".to_string(),
+            "A".to_string(),
+            Some(vec!["b@example.com".to_string()]),
+        );
+        let b = Person::new("b@example.com".to_string(), "B".to_string(), None);
+        assert!(a.can_give_to(&b) == false);
+        assert!(b.can_give_to(&a) == true);
     }
 
     // #[test]
@@ -153,13 +168,17 @@ mod tests {
 
     #[test]
     fn pair_equality() {
-        let p1 = Person::new("a@example.com", "A", vec!["b@example.com"]);
-        let p2 = Person::new("b@example.com", "B", vec![]);
-        let p3 = Person::new("c@example.com", "C", vec![]);
-        let pair1 = Pair::new(&p1, &p2);
-        let pair2 = Pair::new(&p1, &p2);
-        let pair3 = Pair::new(&p1, &p3);
-        let pair4 = Pair::new(&p2, &p1);
+        let p1 = Person::new(
+            "a@example.com".to_string(),
+            "A".to_string(),
+            Some(vec!["b@example.com".to_string()]),
+        );
+        let p2 = Person::new("b@example.com".to_string(), "B".to_string(), None);
+        let p3 = Person::new("c@example.com".to_string(), "C".to_string(), None);
+        let pair1 = Pair::new(p1.clone(), p2.clone());
+        let pair2 = Pair::new(p1.clone(), p2.clone());
+        let pair3 = Pair::new(p1.clone(), p3.clone());
+        let pair4 = Pair::new(p2.clone(), p1.clone());
         assert!(pair1 == pair2);
         assert!(pair2 == pair1);
         assert!(pair1 != pair3);

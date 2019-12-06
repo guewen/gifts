@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 
 use rand::seq::SliceRandom;
-use rand::{thread_rng, Rng};
+use rand::thread_rng;
 
 use serde::Deserialize;
 
@@ -14,13 +14,6 @@ pub struct Person {
 }
 
 impl Person {
-    pub fn new(email: String, name: String, exclude: Option<Vec<String>>) -> Person {
-        Person {
-            email: email,
-            name: name,
-            exclude: exclude,
-        }
-    }
     pub fn can_give_to(&self, receiver: &Person) -> bool {
         match &self.exclude {
             Some(exclude) => !exclude.iter().any(|x| *x == receiver.email),
@@ -51,10 +44,7 @@ pub struct Pair {
 
 impl Pair {
     pub fn new(giver: Person, receiver: Person) -> Pair {
-        Pair {
-            giver: giver,
-            receiver: receiver,
-        }
+        Pair { giver, receiver }
     }
 }
 
@@ -65,7 +55,7 @@ pub struct Pool {
 
 impl Pool {
     pub fn new(people: Vec<Person>) -> Pool {
-        Pool { people: people }
+        Pool { people }
     }
 
     pub fn make_pairs(&mut self) -> Vec<Pair> {

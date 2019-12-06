@@ -29,7 +29,7 @@ impl EmailTemplate {
     }
 }
 
-pub fn send_emails(server: &EmailServer, template: &EmailTemplate, pairs: &Vec<pairs::Pair>) {
+pub fn send_emails(server: &EmailServer, template: &EmailTemplate, pairs: &[pairs::Pair]) {
     let creds = (&server.user, &server.password).into_credentials();
     let mut mailer = SmtpClient::new_simple(&server.address)
         .unwrap()

@@ -4,9 +4,9 @@ use std::hash::{Hash, Hasher};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Person {
     pub email: String,
     pub name: String,
@@ -14,6 +14,13 @@ pub struct Person {
 }
 
 impl Person {
+    pub fn new(email: &str, name: &str, exclude: Option<Vec<&str>>) -> Person {
+        Person {
+            email: email.to_string(),
+            name: name.to_string(),
+            exclude: exclude.map(|r| r.into_iter().map(|email| email.to_string()).collect()),
+        }
+    }
     pub fn can_give_to(&self, receiver: &Person) -> bool {
         match &self.exclude {
             Some(exclude) => !exclude.iter().any(|x| *x == receiver.email),
@@ -136,11 +143,11 @@ mod tests {
     #[test]
     fn exclusion() {
         let a = Person::new(
-            "a@example.com".to_string(),
-            "A".to_string(),
-            Some(vec!["b@example.com".to_string()]),
+            "a@example.com",
+            "A",
+            Some(vec!["b@example.com"]),
         );
-        let b = Person::new("b@example.com".to_string(), "B".to_string(), None);
+        let b = Person::new("b@example.com", "B", None);
         assert!(a.can_give_to(&b) == false);
         assert!(b.can_give_to(&a) == true);
     }
@@ -159,12 +166,12 @@ mod tests {
     #[test]
     fn pair_equality() {
         let p1 = Person::new(
-            "a@example.com".to_string(),
-            "A".to_string(),
-            Some(vec!["b@example.com".to_string()]),
+            "a@example.com",
+            "A",
+            Some(vec!["b@example.com"]),
         );
-        let p2 = Person::new("b@example.com".to_string(), "B".to_string(), None);
-        let p3 = Person::new("c@example.com".to_string(), "C".to_string(), None);
+        let p2 = Person::new("b@example.com", "B", None);
+        let p3 = Person::new("c@example.com", "C", None);
         let pair1 = Pair::new(p1.clone(), p2.clone());
         let pair2 = Pair::new(p1.clone(), p2.clone());
         let pair3 = Pair::new(p1.clone(), p3.clone());

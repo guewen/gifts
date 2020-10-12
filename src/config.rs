@@ -1,17 +1,17 @@
 use serde::{Deserialize, Serialize};
 
 use email::{EmailServer, EmailTemplate};
-use pairs::Person;
+use pairs::Group;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigFile {
-    pub people: Vec<Person>,
+    pub groups: Vec<Group>,
     pub config: GeneralConfig,
 }
 
 impl ConfigFile {
-    pub fn new(people: Vec<Person>, config: GeneralConfig) -> ConfigFile {
-        ConfigFile { people, config }
+    pub fn new(groups: Vec<Group>, config: GeneralConfig) -> Self {
+        Self { groups, config }
     }
 }
 

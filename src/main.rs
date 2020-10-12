@@ -18,7 +18,7 @@ mod pairs;
 
 fn generate_pairs_and_send_emails(config: config::ConfigFile, debug: bool) {
     println!("Computing pairs...");
-    let mut pool = pairs::Pool::new(config.people);
+    let mut pool = pairs::Pool::new(config.groups);
     let pairs = pool.make_pairs();
     println!("Pairs generated");
 
@@ -36,15 +36,19 @@ fn generate_pairs_and_send_emails(config: config::ConfigFile, debug: bool) {
 fn scaffold_config_and_create_file(output_path: &Path) -> io::Result<()> {
     let mut file = File::create(output_path)?;
     let message_body = "Hey {giver},\n\
-             \n\
-             The magical thingy decided that you'll \
-             offer a gift to... {receiver}.";
+                        \n\
+                        The magical thingy decided that you'll \
+                        offer a gift to... {receiver}.";
     let config = config::ConfigFile::new(
         vec![
-            pairs::Person::new("alice@example.com", "Alice", Some(vec!["bob@example.com"])),
-            pairs::Person::new("bob@example.com", "Bob", Some(vec!["alice@example.com"])),
-            pairs::Person::new("jules@example.com", "Jules", Some(vec!["janet@example.com"])),
-            pairs::Person::new("janet@example.com", "Janet", Some(vec!["jules@example.com"])),
+            pairs::Group::new(vec![
+                pairs::Person::new("alice@example.com", "Alice"),
+                pairs::Person::new("bob@example.com", "Bob"),
+            ]),
+            pairs::Group::new(vec![
+                pairs::Person::new("jules@example.com", "Jules"),
+                pairs::Person::new("janet@example.com", "Janet"),
+            ]),
         ],
         config::GeneralConfig::new(
             email::EmailServer::new("stmp.gmail.com", 587, "email-user@example.com", "password"),
@@ -89,6 +93,7 @@ fn main() -> io::Result<()> {
     if let Some(config) = matches.value_of("config") {
         let mut file = File::open(config)?;
         let mut content = String::new();
+        // TODO check duplicate people, maybe change structure
         file.read_to_string(&mut content)?;
         let config_file: config::ConfigFile = serde_yaml::from_str(&content).unwrap();
         generate_pairs_and_send_emails(config_file, matches.is_present("debug"));

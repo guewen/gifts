@@ -4,10 +4,10 @@ version = "0.1.0"
 authors = ["Guewen Baconnier <guewen@gmail.com>"]
 
 [dependencies]
-rand = "0.7.2"
-lettre = "0.9.2"
-lettre_email = "0.9.2"
-serde = { version = "1.0", features = ["derive"] }
-serde_yaml = "0.8"
-clap = "2.33.0"
+rand = "0.8.4"
+lettre = "0.9.6"
+lettre_email = "0.9.4"
+serde = { version = "1.0.130", features = ["derive"] }
+serde_yaml = "0.8.21"
+clap = "2.33.3"
 native-tls = "0.2.4"

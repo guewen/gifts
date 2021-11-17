@@ -1,181 +1,114 @@
-use std::collections::HashSet;
-use std::hash::{Hash, Hasher};
-use std::iter::FromIterator;
-
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
-use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
-// People in a group cannot exchange gifts
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Group {
-    pub people: Vec<Person>,
+use config;
+
+#[derive(Debug, Clone)]
+pub struct Node {
+    pub number: usize,
+    pub group_number: usize,
+    pub person: config::Person,
 }
 
-impl Group {
-    pub fn new(people: Vec<Person>) -> Self {
-        Self { people }
+impl Node {
+    pub fn new(number: usize, group_number: usize, person: config::Person) -> Self {
+        Self { number, group_number, person }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Person {
-    pub email: String,
-    pub name: String,
-}
-
-impl Person {
-    pub fn new(email: &str, name: &str) -> Self {
-        Self {
-            email: email.to_string(),
-            name: name.to_string(),
-        }
-    }
-    // pub fn can_give_to(&self, receiver: &Person) -> bool {
-    //     match &self.exclude {
-    //         Some(exclude) => !exclude.iter().any(|x| *x == receiver.email),
-    //         None => true,
-    //     }
-    // }
-}
-
-impl PartialEq for Person {
-    fn eq(&self, other: &Person) -> bool {
-        self.email == other.email && self.name == other.name
-    }
-}
-
-impl Eq for Person {}
-
-impl Hash for Person {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.email.hash(state);
-        self.name.hash(state);
-    }
-}
-
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Pair {
-    pub giver: Person,
-    pub receiver: Person,
+    pub giver: Node,
+    pub receiver: Node,
 }
 
 impl Pair {
-    pub fn new(giver: Person, receiver: Person) -> Pair {
+    pub fn new(giver: Node, receiver: Node) -> Pair {
         Pair { giver, receiver }
     }
 }
 
 #[derive(Debug)]
 pub struct Pool {
-    groups: Vec<Group>,
+    indexed_nodes: HashMap<usize, Node>,
+    max_attempts: u32,
 }
 
 impl Pool {
-    pub fn new(groups: Vec<Group>) -> Self {
-        Self { groups }
-    }
-
-    pub fn make_pairs(&mut self) -> Vec<Pair> {
-        let mut rng = thread_rng();
-        let mut pairs: Vec<Pair> = vec![];
-        let mut restart_distribution = false;
-        let mut tentatives = 0;
-        let people = self
-            .groups
-            .iter()
-            .map(|g| g.people.clone())
-            .flatten()
-            .collect::<Vec<Person>>();
-        loop {
-            // until we find a correct distribution
-            tentatives += 1;
-            if tentatives > 1000 {
-                panic!("could not make pairs, probably due to recursive exclusions");
-            }
-            pairs.clear();
-            let mut remaining = people.clone();
-            let mut remaining_set: HashSet<Person> = remaining.iter().cloned().collect();
-            remaining.shuffle(&mut rng);
-            let mut receivers = people.iter().cycle();
-            loop {
-                if restart_distribution {
-                    restart_distribution = false;
-                    break;
-                }
-                let person = match remaining.pop() {
-                    Some(person) => person,
-                    None => break,
-                };
-                remaining_set.remove(&person);
-                // TODO optimize with HashMap done once
-                let our_group = self
-                    .groups
-                    .iter()
-                    .find(|g| g.people.contains(&person))
-                    .unwrap();
-                let exclude = HashSet::from_iter(
-                    our_group
-                        .people
-                        .clone()
-                        .into_iter()
-                        .filter(|p| p != &person),
-                );
-                if !remaining_set.is_empty() && remaining_set.is_subset(&exclude) {
-                    // The only remaining candidates are excluded for this person!
-                    // we start again the distribution
-                    restart_distribution = true;
-                    break;
-                } else {
-                    let receiver: &Person;
-                    loop {
-                        match receivers.next() {
-                            Some(r) if r != &person => {
-                                // TODO add method on Group
-                                if !our_group.people.contains(&r)
-                                {
-                                    receiver = &r;
-                                    break;
-                                }
-                            }
-                            Some(_) => continue,
-                            None => unreachable!(),
-                        }
-                    }
-                    let pair = Pair::new(person.clone(), receiver.clone());
-                    pairs.push(pair);
-                }
-            }
-            if remaining.is_empty() {
-                break;
-            }
+    pub fn new(nodes: Vec<Node>) -> Self {
+        let mut indexed_nodes = HashMap::new();
+        for node in nodes {
+            indexed_nodes.insert(node.number, node);
         }
-
-        pairs
+        Self {
+            indexed_nodes: indexed_nodes,
+            max_attempts: 1000
+        }
     }
+
+    pub fn make_pairs(&mut self) -> Result<Vec<Pair>, PoolError> {
+        let mut rng = thread_rng();
+        let mut pairs: Vec<(usize, usize)> = vec![];
+        let node_numbers: Vec<usize> = self.indexed_nodes.keys().cloned().collect();
+
+        // this should be an Halmitonian path based on a graph, but the naive brute-force
+        // version will do for our small group
+        'attempt: for _ in 0..self.max_attempts {
+            pairs.clear();
+            let mut givers_to_assign = node_numbers.clone();
+            let mut receivers_to_assign = node_numbers.clone();
+            givers_to_assign.shuffle(&mut rng);
+            receivers_to_assign.shuffle(&mut rng);
+
+            while let Some(giver_node_number) = givers_to_assign.pop() {
+                if receivers_to_assign.is_empty() {
+                    continue 'attempt
+                }
+                let receiver_node_number: usize = match receivers_to_assign.iter().find(
+                    |&node_number| node_number != &giver_node_number &&
+                        self.indexed_nodes[&giver_node_number].group_number != self.indexed_nodes[node_number].group_number
+                ) {
+                    Some(&node_number) => {
+                        receivers_to_assign.retain(|&item| item != node_number);
+                        node_number
+                    },
+                    None => continue 'attempt,  // failure to find a combination, maybe because of group constraints
+                };
+
+                pairs.push((giver_node_number, receiver_node_number));
+            };
+            if !receivers_to_assign.is_empty() {
+                continue 'attempt
+            }
+            return Ok(self.node_pairs(pairs))
+        }
+        return Err(PoolError::AttemptsReached)
+    }
+
+    fn node_pairs(&self, pairs: Vec<(usize, usize)>) -> Vec<Pair> {
+        pairs.iter().map(|t| Pair::new(self.indexed_nodes[&t.0].clone(), self.indexed_nodes[&t.1].clone())).collect()
+    }
+}
+
+#[derive(Debug)]
+pub enum PoolError {
+    AttemptsReached,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // #[test]
-    // fn exclusion() {
-    //     let a = Person::new("a@example.com", "A");
-    //     let b = Person::new("b@example.com", "B");
-    //     assert!(a.can_give_to(&b) == false);
-    //     assert!(b.can_give_to(&a) == true);
-    // }
-
     #[test]
     fn pool() {
-        let p1 = Person::new("a@example.com", "A");
-        let p2 = Person::new("b@example.com", "B");
-        let p3 = Person::new("c@example.com", "C");
-        let p4 = Person::new("d@example.com", "D");
-        let group1 = Group::new(vec![p1.clone(), p2.clone()]);
-        let group2 = Group::new(vec![p3.clone(), p4.clone()]);
+        let p1 = config::Person::new("a@example.com", "A");
+        let p2 = config::Person::new("b@example.com", "B");
+        let p3 = config::Person::new("c@example.com", "C");
+        let p4 = config::Person::new("d@example.com", "D");
+        let group1 = config::Group::new(vec![p1.clone(), p2.clone()]);
+        let group2 = config::Group::new(vec![p3.clone(), p4.clone()]);
         let mut pool = Pool::new(vec![group1, group2]);
         let pairs = pool.make_pairs();
         assert!(pairs.len() == 4, "pairs has a length of {}: {:#?}", pairs.len(), pairs);

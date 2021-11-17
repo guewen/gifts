@@ -18,13 +18,23 @@ mod pairs;
 
 fn generate_pairs_and_send_emails(config: config::ConfigFile, debug: bool) {
     println!("Computing pairs...");
-    let mut pool = pairs::Pool::new(config.groups);
-    let pairs = pool.make_pairs();
+    let mut nodes = vec![];
+    let mut person_idx = 0;
+    for (group_idx, group) in config.groups.iter().enumerate() {
+        for person in group.people.iter() {
+            nodes.push(
+                pairs::Node::new(person_idx, group_idx, person.clone())
+            );
+            person_idx += 1;
+        }
+    }
+    let mut pool = pairs::Pool::new(nodes);
+    let pairs = pool.make_pairs().unwrap();
     println!("Pairs generated");
 
     if debug {
         for pair in pairs.iter() {
-            println!("{} → {}", pair.giver.email, pair.receiver.email);
+            println!("{} → {}", pair.giver.person.email, pair.receiver.person.email);
         }
     } else {
         println!("Sending emails");
@@ -41,13 +51,20 @@ fn scaffold_config_and_create_file(output_path: &Path) -> io::Result<()> {
                         offer a gift to... {receiver}.";
     let config = config::ConfigFile::new(
         vec![
-            pairs::Group::new(vec![
-                pairs::Person::new("alice@example.com", "Alice"),
-                pairs::Person::new("bob@example.com", "Bob"),
+            config::Group::new(vec![
+                config::Person::new("alice@example.com", "Alice"),
+                config::Person::new("bob@example.com", "Bob"),
             ]),
-            pairs::Group::new(vec![
-                pairs::Person::new("jules@example.com", "Jules"),
-                pairs::Person::new("janet@example.com", "Janet"),
+            config::Group::new(vec![
+                config::Person::new("jules@example.com", "Jules"),
+                config::Person::new("janet@example.com", "Janet"),
+            ]),
+            config::Group::new(vec![
+                config::Person::new("john@example.com", "John"),
+            ]),
+            config::Group::new(vec![
+                config::Person::new("foo@example.com", "Foo"),
+                config::Person::new("bar@example.com", "Bar"),
             ]),
         ],
         config::GeneralConfig::new(

@@ -8,6 +8,7 @@ use native_tls::TlsConnector;
 use serde::{Deserialize, Serialize};
 
 use pairs;
+use config;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmailServer {
@@ -43,10 +44,10 @@ impl EmailTemplate {
             body: body.to_string(),
         }
     }
-    pub fn format_body(&self, giver: &pairs::Person, receiver: &pairs::Person) -> String {
+    pub fn format_body(&self, giver_person: &config::Person, receiver_person: &config::Person) -> String {
         self.body
-            .replace("{giver}", &giver.name)
-            .replace("{receiver}", &receiver.name)
+            .replace("{giver}", &giver_person.name)
+            .replace("{receiver}", &receiver_person.name)
     }
 }
 
@@ -67,21 +68,21 @@ pub fn send_emails(server: &EmailServer, template: &EmailTemplate, pairs: &[pair
         .transport();
 
     for pair in pairs.iter() {
-        let body = template.format_body(&pair.giver, &pair.receiver);
+        let body = template.format_body(&pair.giver.person, &pair.receiver.person);
         let email = EmailBuilder::new()
-            .to(pair.giver.email.as_str())
+            .to(pair.giver.person.email.as_str())
             .from(template.from.as_str())
             .subject(&template.subject)
             .text(&body)
             .build()
             .unwrap()
             .into();
-        // println!("{:?}", email);
+
         match mailer.send(email) {
-            Ok(_) => println!("email successfully sent to {}", pair.giver.email),
+            Ok(_) => println!("email successfully sent to {}", pair.giver.person.email),
             Err(err) => println!(
                 "could not send email ({} -> {}): {}",
-                pair.giver.email, pair.receiver.email, err
+                pair.giver.person.email, pair.receiver.person.email, err
             ),
         }
     }

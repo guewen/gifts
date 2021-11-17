@@ -1,9 +1,9 @@
-use pairs;
 use config;
+use pairs;
 
 #[derive(Debug)]
 pub struct Hints {
-    pub pairs: Vec<pairs::Pair>
+    pub pairs: Vec<pairs::Pair>,
 }
 
 impl Hints {
@@ -16,11 +16,13 @@ impl Hints {
         // find other people who give a gift to people of the same groups, so they can share
         // their gift if wanted
         let mut pairs = self.pairs.to_vec();
-        pairs.retain(
-            |pair| pair.receiver.group_number == group_number
-                && pair.receiver.number != receiver.number
-        );
+        pairs.retain(|pair| {
+            pair.receiver.group_number == group_number && pair.receiver.number != receiver.number
+        });
 
-        pairs.iter().map(|pair| (pair.giver.person.clone(), pair.receiver.person.clone())).collect()
+        pairs
+            .iter()
+            .map(|pair| (pair.giver.person.clone(), pair.receiver.person.clone()))
+            .collect()
     }
 }

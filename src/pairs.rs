@@ -14,7 +14,11 @@ pub struct Node {
 
 impl Node {
     pub fn new(number: usize, group_number: usize, person: config::Person) -> Self {
-        Self { number, group_number, person }
+        Self {
+            number,
+            group_number,
+            person,
+        }
     }
 }
 
@@ -44,7 +48,7 @@ impl Pool {
         }
         Self {
             indexed_nodes: indexed_nodes,
-            max_attempts: 1000
+            max_attempts: 1000,
         }
     }
 
@@ -64,31 +68,41 @@ impl Pool {
 
             while let Some(giver_node_number) = givers_to_assign.pop() {
                 if receivers_to_assign.is_empty() {
-                    continue 'attempt
+                    continue 'attempt;
                 }
-                let receiver_node_number: usize = match receivers_to_assign.iter().find(
-                    |&node_number| node_number != &giver_node_number &&
-                        self.indexed_nodes[&giver_node_number].group_number != self.indexed_nodes[node_number].group_number
-                ) {
-                    Some(&node_number) => {
-                        receivers_to_assign.retain(|&item| item != node_number);
-                        node_number
-                    },
-                    None => continue 'attempt,  // failure to find a combination, maybe because of group constraints
-                };
+                let receiver_node_number: usize =
+                    match receivers_to_assign.iter().find(|&node_number| {
+                        node_number != &giver_node_number
+                            && self.indexed_nodes[&giver_node_number].group_number
+                                != self.indexed_nodes[node_number].group_number
+                    }) {
+                        Some(&node_number) => {
+                            receivers_to_assign.retain(|&item| item != node_number);
+                            node_number
+                        }
+                        None => continue 'attempt, // failure to find a combination, maybe because of group constraints
+                    };
 
                 pairs.push((giver_node_number, receiver_node_number));
-            };
-            if !receivers_to_assign.is_empty() {
-                continue 'attempt
             }
-            return Ok(self.node_pairs(pairs))
+            if !receivers_to_assign.is_empty() {
+                continue 'attempt;
+            }
+            return Ok(self.node_pairs(pairs));
         }
-        return Err(PoolError::AttemptsReached)
+        return Err(PoolError::AttemptsReached);
     }
 
     fn node_pairs(&self, pairs: Vec<(usize, usize)>) -> Vec<Pair> {
-        pairs.iter().map(|t| Pair::new(self.indexed_nodes[&t.0].clone(), self.indexed_nodes[&t.1].clone())).collect()
+        pairs
+            .iter()
+            .map(|t| {
+                Pair::new(
+                    self.indexed_nodes[&t.0].clone(),
+                    self.indexed_nodes[&t.1].clone(),
+                )
+            })
+            .collect()
     }
 }
 
@@ -111,7 +125,12 @@ mod tests {
         let group2 = config::Group::new(vec![p3.clone(), p4.clone()]);
         let mut pool = Pool::new(vec![group1, group2]);
         let pairs = pool.make_pairs();
-        assert!(pairs.len() == 4, "pairs has a length of {}: {:#?}", pairs.len(), pairs);
+        assert!(
+            pairs.len() == 4,
+            "pairs has a length of {}: {:#?}",
+            pairs.len(),
+            pairs
+        );
         for pair in pairs.iter() {
             if pair.giver == p1 || pair.giver == p2 {
                 assert!(pair.receiver == p3 || pair.receiver == p4);

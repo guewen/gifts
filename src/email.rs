@@ -1,7 +1,7 @@
 use lettre::smtp::authentication::IntoCredentials;
+use lettre::smtp::client::net::DEFAULT_TLS_PROTOCOLS;
 use lettre::smtp::ConnectionReuseParameters;
 use lettre::{ClientSecurity, ClientTlsParameters, SmtpClient, Transport};
-use lettre::smtp::client::net::DEFAULT_TLS_PROTOCOLS;
 use lettre_email::EmailBuilder;
 use native_tls::TlsConnector;
 
@@ -9,16 +9,16 @@ use serde::{Deserialize, Serialize};
 
 use tinytemplate::TinyTemplate;
 
-use pairs;
 use config;
 use hints;
+use pairs;
 
 #[derive(Serialize)]
 struct EmailBodyContext {
     giver: String,
     receiver: String,
     has_secrets: bool,
-    secrets: Vec<(config::Person, config::Person)>
+    secrets: Vec<(config::Person, config::Person)>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,7 +55,12 @@ impl EmailTemplate {
             body: body.to_string(),
         }
     }
-    pub fn format_body(&self, giver_person: &config::Person, receiver_person: &config::Person, secrets: Vec<(config::Person, config::Person)>) -> String {
+    pub fn format_body(
+        &self,
+        giver_person: &config::Person,
+        receiver_person: &config::Person,
+        secrets: Vec<(config::Person, config::Person)>,
+    ) -> String {
         let mut template = TinyTemplate::new();
         template.add_template("body", &self.body).unwrap();
 
@@ -63,14 +68,19 @@ impl EmailTemplate {
             giver: giver_person.name.clone(),
             receiver: receiver_person.name.clone(),
             has_secrets: !secrets.is_empty(),
-            secrets: secrets
+            secrets: secrets,
         };
 
         template.render("body", &context).unwrap()
     }
 }
 
-pub fn send_emails(server: &EmailServer, template: &EmailTemplate, pairs: &[pairs::Pair], hints: &hints::Hints) {
+pub fn send_emails(
+    server: &EmailServer,
+    template: &EmailTemplate,
+    pairs: &[pairs::Pair],
+    hints: &hints::Hints,
+) {
     let mut tls_builder = TlsConnector::builder();
     tls_builder.min_protocol_version(Some(DEFAULT_TLS_PROTOCOLS[0]));
 
@@ -81,10 +91,11 @@ pub fn send_emails(server: &EmailServer, template: &EmailTemplate, pairs: &[pair
     let mut mailer = SmtpClient::new(
         (server.address.to_string(), server.port),
         ClientSecurity::Opportunistic(tls_parameters),
-    ).unwrap()
-        .credentials(creds)
-        .connection_reuse(ConnectionReuseParameters::ReuseUnlimited)
-        .transport();
+    )
+    .unwrap()
+    .credentials(creds)
+    .connection_reuse(ConnectionReuseParameters::ReuseUnlimited)
+    .transport();
 
     for pair in pairs.iter() {
         let secrets = hints.secret_hints(&pair.receiver);

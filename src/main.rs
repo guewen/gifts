@@ -1,10 +1,10 @@
 extern crate clap;
 extern crate lettre;
 extern crate lettre_email;
+extern crate native_tls;
 extern crate rand;
 extern crate serde;
 extern crate serde_yaml;
-extern crate native_tls;
 extern crate tinytemplate;
 
 use std::fs::File;
@@ -15,8 +15,8 @@ use clap::{App, AppSettings, Arg};
 
 mod config;
 mod email;
-mod pairs;
 mod hints;
+mod pairs;
 
 fn generate_pairs_and_send_emails(config: config::ConfigFile, debug: bool) {
     println!("Computing pairs...");
@@ -24,9 +24,7 @@ fn generate_pairs_and_send_emails(config: config::ConfigFile, debug: bool) {
     let mut person_idx = 0;
     for (group_idx, group) in config.groups.iter().enumerate() {
         for person in group.people.iter() {
-            nodes.push(
-                pairs::Node::new(person_idx, group_idx, person.clone())
-            );
+            nodes.push(pairs::Node::new(person_idx, group_idx, person.clone()));
             person_idx += 1;
         }
     }
@@ -34,19 +32,35 @@ fn generate_pairs_and_send_emails(config: config::ConfigFile, debug: bool) {
     let pairs = pool.make_pairs().unwrap();
     println!("Pairs generated");
 
-
     let secret_hints = hints::Hints::new(pairs.clone());
 
     if debug {
         for pair in pairs.iter() {
-            println!("{} → {}", pair.giver.person.email, pair.receiver.person.email);
+            println!(
+                "{} → {}",
+                pair.giver.person.email, pair.receiver.person.email
+            );
             let secrets = secret_hints.secret_hints(&pair.receiver);
-            let body = config.config.email.format_body(&pair.giver.person, &pair.receiver.person, secrets);
-            println!("{}", body.lines().map(|line| format!("  > {}\n", line)).collect::<String>())
+            let body =
+                config
+                    .config
+                    .email
+                    .format_body(&pair.giver.person, &pair.receiver.person, secrets);
+            println!(
+                "{}",
+                body.lines()
+                    .map(|line| format!("  > {}\n", line))
+                    .collect::<String>()
+            )
         }
     } else {
         println!("Sending emails");
-        email::send_emails(&config.config.smtp, &config.config.email, &pairs, &secret_hints);
+        email::send_emails(
+            &config.config.smtp,
+            &config.config.email,
+            &pairs,
+            &secret_hints,
+        );
     }
     println!("Done!");
 }
@@ -75,9 +89,7 @@ fn scaffold_config_and_create_file(output_path: &Path) -> io::Result<()> {
                 config::Person::new("jules@example.com", "Jules"),
                 config::Person::new("janet@example.com", "Janet"),
             ]),
-            config::Group::new(vec![
-                config::Person::new("john@example.com", "John"),
-            ]),
+            config::Group::new(vec![config::Person::new("john@example.com", "John")]),
             config::Group::new(vec![
                 config::Person::new("foo@example.com", "Foo"),
                 config::Person::new("bar@example.com", "Bar"),

@@ -18,7 +18,7 @@ impl Node {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Pair {
     pub giver: Node,
     pub receiver: Node,

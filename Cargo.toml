@@ -11,3 +11,4 @@ serde = { version = "1.0.130", features = ["derive"] }
 serde_yaml = "0.8.21"
 clap = "2.33.3"
 native-tls = "0.2.4"
+tinytemplate = "1.1"

@@ -5,6 +5,7 @@ extern crate rand;
 extern crate serde;
 extern crate serde_yaml;
 extern crate native_tls;
+extern crate tinytemplate;
 
 use std::fs::File;
 use std::io::{self, prelude::*};
@@ -15,6 +16,7 @@ use clap::{App, AppSettings, Arg};
 mod config;
 mod email;
 mod pairs;
+mod hints;
 
 fn generate_pairs_and_send_emails(config: config::ConfigFile, debug: bool) {
     println!("Computing pairs...");
@@ -32,13 +34,19 @@ fn generate_pairs_and_send_emails(config: config::ConfigFile, debug: bool) {
     let pairs = pool.make_pairs().unwrap();
     println!("Pairs generated");
 
+
+    let secret_hints = hints::Hints::new(pairs.clone());
+
     if debug {
         for pair in pairs.iter() {
             println!("{} → {}", pair.giver.person.email, pair.receiver.person.email);
+            let secrets = secret_hints.secret_hints(&pair.receiver);
+            let body = config.config.email.format_body(&pair.giver.person, &pair.receiver.person, secrets);
+            println!("{}", body.lines().map(|line| format!("  > {}\n", line)).collect::<String>())
         }
     } else {
         println!("Sending emails");
-        email::send_emails(&config.config.smtp, &config.config.email, &pairs);
+        email::send_emails(&config.config.smtp, &config.config.email, &pairs, &secret_hints);
     }
     println!("Done!");
 }
@@ -48,7 +56,15 @@ fn scaffold_config_and_create_file(output_path: &Path) -> io::Result<()> {
     let message_body = "Hey {giver},\n\
                         \n\
                         The magical thingy decided that you'll \
-                        offer a gift to... {receiver}.";
+                        offer a gift to... {receiver}.\n\n
+
+                        {{- if has_secrets }}
+
+                        I can tell you something...
+                        {{ for secret in secrets }}
+                        { secret.0.name } is the secret santa of { secret.1.name }... 🤫
+                        {{- endfor }}
+                        {{- endif }}";
     let config = config::ConfigFile::new(
         vec![
             config::Group::new(vec![

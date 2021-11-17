@@ -7,8 +7,19 @@ use native_tls::TlsConnector;
 
 use serde::{Deserialize, Serialize};
 
+use tinytemplate::TinyTemplate;
+
 use pairs;
 use config;
+use hints;
+
+#[derive(Serialize)]
+struct EmailBodyContext {
+    giver: String,
+    receiver: String,
+    has_secrets: bool,
+    secrets: Vec<(config::Person, config::Person)>
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmailServer {
@@ -44,14 +55,22 @@ impl EmailTemplate {
             body: body.to_string(),
         }
     }
-    pub fn format_body(&self, giver_person: &config::Person, receiver_person: &config::Person) -> String {
-        self.body
-            .replace("{giver}", &giver_person.name)
-            .replace("{receiver}", &receiver_person.name)
+    pub fn format_body(&self, giver_person: &config::Person, receiver_person: &config::Person, secrets: Vec<(config::Person, config::Person)>) -> String {
+        let mut template = TinyTemplate::new();
+        template.add_template("body", &self.body).unwrap();
+
+        let context = EmailBodyContext {
+            giver: giver_person.name.clone(),
+            receiver: receiver_person.name.clone(),
+            has_secrets: !secrets.is_empty(),
+            secrets: secrets
+        };
+
+        template.render("body", &context).unwrap()
     }
 }
 
-pub fn send_emails(server: &EmailServer, template: &EmailTemplate, pairs: &[pairs::Pair]) {
+pub fn send_emails(server: &EmailServer, template: &EmailTemplate, pairs: &[pairs::Pair], hints: &hints::Hints) {
     let mut tls_builder = TlsConnector::builder();
     tls_builder.min_protocol_version(Some(DEFAULT_TLS_PROTOCOLS[0]));
 
@@ -68,7 +87,8 @@ pub fn send_emails(server: &EmailServer, template: &EmailTemplate, pairs: &[pair
         .transport();
 
     for pair in pairs.iter() {
-        let body = template.format_body(&pair.giver.person, &pair.receiver.person);
+        let secrets = hints.secret_hints(&pair.receiver);
+        let body = template.format_body(&pair.giver.person, &pair.receiver.person, secrets);
         let email = EmailBuilder::new()
             .to(pair.giver.person.email.as_str())
             .from(template.from.as_str())

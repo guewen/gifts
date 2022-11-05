@@ -1,7 +1,9 @@
 use lettre::smtp::authentication::IntoCredentials;
 use lettre::smtp::ConnectionReuseParameters;
-use lettre::{SmtpClient, Transport};
+use lettre::{ClientSecurity, ClientTlsParameters, SmtpClient, Transport};
+use lettre::smtp::client::net::DEFAULT_TLS_PROTOCOLS;
 use lettre_email::EmailBuilder;
+use native_tls::TlsConnector;
 
 use serde::{Deserialize, Serialize};
 
@@ -12,14 +14,16 @@ pub struct EmailServer {
     address: String,
     user: String,
     password: String,
+    port: u16,
 }
 
 impl EmailServer {
-    pub fn new(address: &str, user: &str, password: &str) -> EmailServer {
+    pub fn new(address: &str, user: &str, password: &str, port: u16) -> EmailServer {
         EmailServer {
             address: address.to_string(),
             user: user.to_string(),
             password: password.to_string(),
+            port
         }
     }
 }
@@ -47,12 +51,21 @@ impl EmailTemplate {
 }
 
 pub fn send_emails(server: &EmailServer, template: &EmailTemplate, pairs: &[pairs::Pair]) {
+    let mut tls_builder = TlsConnector::builder();
+    tls_builder.min_protocol_version(Some(DEFAULT_TLS_PROTOCOLS[0]));
+
+    let tls_parameters =
+        ClientTlsParameters::new(server.address.to_string(), tls_builder.build().unwrap());
+
     let creds = (&server.user, &server.password).into_credentials();
-    let mut mailer = SmtpClient::new_simple(&server.address)
-        .unwrap()
+    let mut mailer = SmtpClient::new(
+        (server.address.to_string(), server.port),
+        ClientSecurity::Opportunistic(tls_parameters),
+    ).unwrap()
         .credentials(creds)
         .connection_reuse(ConnectionReuseParameters::ReuseUnlimited)
         .transport();
+
 
     for pair in pairs.iter() {
         let body = template.format_body(&pair.giver, &pair.receiver);

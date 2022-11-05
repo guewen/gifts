@@ -53,9 +53,10 @@ people:
       - jules@example.com
 config:
   smtp:
-    address: "stmp.gmail.com:587"
+    address: stmp.gmail.com
     user: email-user@example.com
     password: password
+    port: 587
   email:
     from: email-user@example.com
     subject: Gift for our Lackadaisical party

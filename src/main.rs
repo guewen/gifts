@@ -47,7 +47,7 @@ fn scaffold_config_and_create_file(output_path: &Path) -> io::Result<()> {
             pairs::Person::new("janet@example.com", "Janet", Some(vec!["jules@example.com"])),
         ],
         config::GeneralConfig::new(
-            email::EmailServer::new("stmp.gmail.com", "email-user@example.com", "password", 587),
+            email::EmailServer::new("stmp.gmail.com", 587, "email-user@example.com", "password"),
             email::EmailTemplate::new(
                 "email-user@example.com",
                 "Gift for our Lackadaisical party",

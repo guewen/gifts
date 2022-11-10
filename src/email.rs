@@ -12,18 +12,18 @@ use pairs;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmailServer {
     address: String,
+    port: u16,
     user: String,
     password: String,
-    port: u16,
 }
 
 impl EmailServer {
-    pub fn new(address: &str, user: &str, password: &str, port: u16) -> EmailServer {
+    pub fn new(address: &str, port: u16, user: &str, password: &str) -> EmailServer {
         EmailServer {
             address: address.to_string(),
+            port,
             user: user.to_string(),
             password: password.to_string(),
-            port
         }
     }
 }
@@ -65,7 +65,6 @@ pub fn send_emails(server: &EmailServer, template: &EmailTemplate, pairs: &[pair
         .credentials(creds)
         .connection_reuse(ConnectionReuseParameters::ReuseUnlimited)
         .transport();
-
 
     for pair in pairs.iter() {
         let body = template.format_body(&pair.giver, &pair.receiver);

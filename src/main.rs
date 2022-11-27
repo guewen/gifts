@@ -4,6 +4,7 @@ extern crate lettre_email;
 extern crate rand;
 extern crate serde;
 extern crate serde_yaml;
+extern crate native_tls;
 
 use std::fs::File;
 use std::io::{self, prelude::*};
@@ -46,7 +47,7 @@ fn scaffold_config_and_create_file(output_path: &Path) -> io::Result<()> {
             pairs::Person::new("janet@example.com", "Janet", Some(vec!["jules@example.com"])),
         ],
         config::GeneralConfig::new(
-            email::EmailServer::new("stmp.gmail.com:587", "email-user@example.com", "password"),
+            email::EmailServer::new("stmp.gmail.com", 587, "email-user@example.com", "password"),
             email::EmailTemplate::new(
                 "email-user@example.com",
                 "Gift for our Lackadaisical party",

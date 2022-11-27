@@ -53,7 +53,8 @@ people:
       - jules@example.com
 config:
   smtp:
-    address: "stmp.gmail.com:587"
+    address: stmp.gmail.com
+    port: 587
     user: email-user@example.com
     password: password
   email:

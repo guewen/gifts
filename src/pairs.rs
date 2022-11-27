@@ -47,7 +47,7 @@ impl Pool {
             indexed_nodes.insert(node.number, node);
         }
         Self {
-            indexed_nodes: indexed_nodes,
+            indexed_nodes,
             max_attempts: 1000,
         }
     }
@@ -121,10 +121,14 @@ mod tests {
         let p2 = config::Person::new("b@example.com", "B");
         let p3 = config::Person::new("c@example.com", "C");
         let p4 = config::Person::new("d@example.com", "D");
-        let group1 = config::Group::new(vec![p1.clone(), p2.clone()]);
-        let group2 = config::Group::new(vec![p3.clone(), p4.clone()]);
-        let mut pool = Pool::new(vec![group1, group2]);
-        let pairs = pool.make_pairs();
+        let node1 = Node::new(0, 0, p1);
+        let node2 = Node::new(1, 0, p2);
+        let node3 = Node::new(2, 1, p3);
+        let node4 = Node::new(3, 1, p4);
+        // let group1 = config::Group::new(vec![p1.clone(), p2.clone()]);
+        // let group2 = config::Group::new(vec![p3.clone(), p4.clone()]);
+        let mut pool = Pool::new(vec![node1, node2, node3, node4]);
+        let pairs = pool.make_pairs().unwrap();
         assert!(
             pairs.len() == 4,
             "pairs has a length of {}: {:#?}",
@@ -132,35 +136,11 @@ mod tests {
             pairs
         );
         for pair in pairs.iter() {
-            if pair.giver == p1 || pair.giver == p2 {
-                assert!(pair.receiver == p3 || pair.receiver == p4);
-            } else if pair.giver == p3 || pair.giver == p4 {
-                assert!(pair.receiver == p1 || pair.receiver == p2);
+            if pair.giver.number == 0 || pair.giver.number == 1 {
+                assert!(pair.receiver.number == 2 || pair.receiver.number == 3);
+            } else if pair.giver.number == 2 || pair.giver.number == 3 {
+                assert!(pair.receiver.number == 0 || pair.receiver.number == 1);
             }
         }
-    }
-
-    #[test]
-    fn person_equality() {
-        let p1 = Person::new("a@example.com", "A");
-        let p2 = Person::new("b@example.com", "B");
-        assert!(p1 == p1);
-        assert!(p2 == p2);
-        assert!(p1 != p2);
-    }
-
-    #[test]
-    fn pair_equality() {
-        let p1 = Person::new("a@example.com", "A");
-        let p2 = Person::new("b@example.com", "B");
-        let p3 = Person::new("c@example.com", "C");
-        let pair1 = Pair::new(p1.clone(), p2.clone());
-        let pair2 = Pair::new(p1.clone(), p2.clone());
-        let pair3 = Pair::new(p1.clone(), p3.clone());
-        let pair4 = Pair::new(p2.clone(), p1.clone());
-        assert!(pair1 == pair2);
-        assert!(pair2 == pair1);
-        assert!(pair1 != pair3);
-        assert!(pair1 != pair4);
     }
 }

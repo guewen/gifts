@@ -68,7 +68,7 @@ impl EmailTemplate {
             giver: giver_person.name.clone(),
             receiver: receiver_person.name.clone(),
             has_secrets: !secrets.is_empty(),
-            secrets: secrets,
+            secrets,
         };
 
         template.render("body", &context).unwrap()

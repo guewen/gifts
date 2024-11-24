@@ -17,7 +17,9 @@ impl Hints {
         // their gift if wanted
         let mut pairs = self.pairs.to_vec();
         pairs.retain(|pair| {
-            pair.receiver.group_number == group_number && pair.receiver.number != receiver.number
+            pair.receiver.show_receiver_hints
+                && pair.receiver.group_number == group_number
+                && pair.receiver.number != receiver.number
         });
 
         pairs

@@ -9,14 +9,21 @@ use config;
 pub struct Node {
     pub number: usize,
     pub group_number: usize,
+    pub show_receiver_hints: bool,
     pub person: config::Person,
 }
 
 impl Node {
-    pub fn new(number: usize, group_number: usize, person: config::Person) -> Self {
+    pub fn new(
+        number: usize,
+        group_number: usize,
+        show_receiver_hints: bool,
+        person: config::Person,
+    ) -> Self {
         Self {
             number,
             group_number,
+            show_receiver_hints,
             person,
         }
     }

@@ -12,11 +12,17 @@ pub struct ConfigFile {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Group {
     pub people: Vec<Person>,
+    #[serde(default = "default_hints")]
+    pub hints: bool,
+}
+
+fn default_hints() -> bool {
+    true
 }
 
 impl Group {
-    pub fn new(people: Vec<Person>) -> Self {
-        Self { people }
+    pub fn new(people: Vec<Person>, hints: bool) -> Self {
+        Self { people, hints }
     }
 }
 

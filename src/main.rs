@@ -11,7 +11,7 @@ use std::fs::File;
 use std::io::{self, prelude::*};
 use std::path::Path;
 
-use clap::{App, AppSettings, Arg};
+use clap::{App, AppSettings, Arg, crate_version};
 
 mod config;
 mod email;
@@ -124,7 +124,7 @@ fn scaffold_config_and_create_file(output_path: &Path) -> io::Result<()> {
 
 fn main() -> io::Result<()> {
     let matches = App::new("Gifts!")
-        .version("0.1.0")
+        .version(crate_version!())
         .author("Guewen Baconnier <guewen@gmail.com>")
         .about("Send Secret Emails for Secret-Santa-style events")
         .setting(AppSettings::ArgRequiredElseHelp)

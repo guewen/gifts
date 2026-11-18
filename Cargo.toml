@@ -1,14 +1,14 @@
 [package]
 name = "gifts"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Guewen Baconnier <guewen@gmail.com>"]
+edition = "2024"
+rust-version = "1.85"
 
 [dependencies]
-rand = "0.8.4"
-lettre = "0.9.6"
-lettre_email = "0.9.4"
-serde = { version = "1.0.130", features = ["derive"] }
-serde_yaml = "0.8.21"
-clap = "2.33.3"
-native-tls = "0.2.4"
-tinytemplate = "1.1"
+rand = "0.10"
+lettre = { version = "0.11", default-features = false, features = ["smtp-transport", "pool", "hostname", "builder", "rustls-tls"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_norway = "0.9"
+clap = { version = "4.6", features = ["derive", "cargo"] }
+tinytemplate = "1.2"

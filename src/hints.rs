@@ -1,5 +1,5 @@
-use config;
-use pairs;
+use crate::config;
+use crate::pairs;
 
 #[derive(Debug)]
 pub struct Hints {

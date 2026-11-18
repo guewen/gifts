@@ -1,9 +1,8 @@
 use rand::seq::SliceRandom;
-use rand::thread_rng;
 
 use std::collections::HashMap;
 
-use config;
+use crate::config;
 
 #[derive(Debug, Clone)]
 pub struct Node {
@@ -60,7 +59,7 @@ impl Pool {
     }
 
     pub fn make_pairs(&mut self) -> Result<Vec<Pair>, PoolError> {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
         let mut pairs: Vec<(usize, usize)> = vec![];
         let node_numbers: Vec<usize> = self.indexed_nodes.keys().cloned().collect();
 
@@ -97,7 +96,7 @@ impl Pool {
             }
             return Ok(self.node_pairs(pairs));
         }
-        return Err(PoolError::AttemptsReached);
+        Err(PoolError::AttemptsReached)
     }
 
     fn node_pairs(&self, pairs: Vec<(usize, usize)>) -> Vec<Pair> {
@@ -128,10 +127,10 @@ mod tests {
         let p2 = config::Person::new("b@example.com", "B");
         let p3 = config::Person::new("c@example.com", "C");
         let p4 = config::Person::new("d@example.com", "D");
-        let node1 = Node::new(0, 0, p1);
-        let node2 = Node::new(1, 0, p2);
-        let node3 = Node::new(2, 1, p3);
-        let node4 = Node::new(3, 1, p4);
+        let node1 = Node::new(0, 0, true, p1);
+        let node2 = Node::new(1, 0, true, p2);
+        let node3 = Node::new(2, 1, true, p3);
+        let node4 = Node::new(3, 1, true, p4);
         // let group1 = config::Group::new(vec![p1.clone(), p2.clone()]);
         // let group2 = config::Group::new(vec![p3.clone(), p4.clone()]);
         let mut pool = Pool::new(vec![node1, node2, node3, node4]);

@@ -1,17 +1,15 @@
-use lettre::smtp::authentication::IntoCredentials;
-use lettre::smtp::client::net::DEFAULT_TLS_PROTOCOLS;
-use lettre::smtp::ConnectionReuseParameters;
-use lettre::{ClientSecurity, ClientTlsParameters, SmtpClient, Transport};
-use lettre_email::EmailBuilder;
-use native_tls::TlsConnector;
+use lettre::message::header::ContentType;
+use lettre::transport::smtp::authentication::Credentials;
+use lettre::transport::smtp::client::{Tls, TlsParameters};
+use lettre::{Message, SmtpTransport, Transport};
 
 use serde::{Deserialize, Serialize};
 
 use tinytemplate::TinyTemplate;
 
-use config;
-use hints;
-use pairs;
+use crate::config;
+use crate::hints;
+use crate::pairs;
 
 #[derive(Serialize)]
 struct EmailBodyContext {
@@ -81,35 +79,29 @@ pub fn send_emails(
     pairs: &[pairs::Pair],
     hints: &hints::Hints,
 ) {
-    let mut tls_builder = TlsConnector::builder();
-    tls_builder.min_protocol_version(Some(DEFAULT_TLS_PROTOCOLS[0]));
-
-    let tls_parameters =
-        ClientTlsParameters::new(server.address.to_string(), tls_builder.build().unwrap());
-
-    let creds = (&server.user, &server.password).into_credentials();
-    let mut mailer = SmtpClient::new(
-        (server.address.to_string(), server.port),
-        ClientSecurity::Opportunistic(tls_parameters),
-    )
-    .unwrap()
-    .credentials(creds)
-    .connection_reuse(ConnectionReuseParameters::ReuseUnlimited)
-    .transport();
+    let tls_parameters = TlsParameters::new(server.address.clone()).unwrap();
+    let creds = Credentials::new(server.user.clone(), server.password.clone());
+    let mailer = SmtpTransport::builder_dangerous(&server.address)
+        .port(server.port)
+        .tls(Tls::Opportunistic(tls_parameters))
+        .credentials(creds)
+        .build();
 
     for pair in pairs.iter() {
         let secrets = hints.secret_hints(&pair.receiver);
         let body = template.format_body(&pair.giver.person, &pair.receiver.person, secrets);
-        let email = EmailBuilder::new()
-            .to(pair.giver.person.email.as_str())
-            .from(template.from.as_str())
-            .subject(&template.subject)
-            .text(&body)
-            .build()
-            .unwrap()
-            .into();
+        let email = match build_message(template, &pair.giver.person.email, body) {
+            Ok(email) => email,
+            Err(err) => {
+                println!(
+                    "could not build email ({} -> {}): {}",
+                    pair.giver.person.email, pair.receiver.person.email, err
+                );
+                continue;
+            }
+        };
 
-        match mailer.send(email) {
+        match mailer.send(&email) {
             Ok(_) => println!("email successfully sent to {}", pair.giver.person.email),
             Err(err) => println!(
                 "could not send email ({} -> {}): {}",
@@ -117,6 +109,17 @@ pub fn send_emails(
             ),
         }
     }
+}
 
-    mailer.close();
+fn build_message(
+    template: &EmailTemplate,
+    to: &str,
+    body: String,
+) -> Result<Message, Box<dyn std::error::Error>> {
+    Ok(Message::builder()
+        .to(to.parse()?)
+        .from(template.from.parse()?)
+        .subject(&template.subject)
+        .header(ContentType::TEXT_PLAIN)
+        .body(body)?)
 }

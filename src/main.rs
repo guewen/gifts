@@ -1,17 +1,8 @@
-extern crate clap;
-extern crate lettre;
-extern crate lettre_email;
-extern crate native_tls;
-extern crate rand;
-extern crate serde;
-extern crate serde_yaml;
-extern crate tinytemplate;
+use std::fs;
+use std::io;
+use std::path::{Path, PathBuf};
 
-use std::fs::File;
-use std::io::{self, prelude::*};
-use std::path::Path;
-
-use clap::{App, AppSettings, Arg, crate_version};
+use clap::{ArgGroup, Parser};
 
 mod config;
 mod email;
@@ -71,7 +62,6 @@ fn generate_pairs_and_send_emails(config: config::ConfigFile, debug: bool) {
 }
 
 fn scaffold_config_and_create_file(output_path: &Path) -> io::Result<()> {
-    let mut file = File::create(output_path)?;
     let message_body = "Hey {giver},\n\
                         \n\
                         The magical thingy decided that you'll \
@@ -118,46 +108,43 @@ fn scaffold_config_and_create_file(output_path: &Path) -> io::Result<()> {
             ),
         ),
     );
-    let content = serde_yaml::to_string(&config).unwrap();
-    file.write_all(content.as_bytes())
+    let content = serde_norway::to_string(&config).unwrap();
+    fs::write(output_path, content)
+}
+
+/// Send Secret Emails for Secret-Santa-style events
+#[derive(Parser, Debug)]
+#[command(
+    name = "Gifts!",
+    version,
+    author = "Guewen Baconnier <guewen@gmail.com>",
+    arg_required_else_help = true,
+    group(ArgGroup::new("action").args(["config", "scaffold"]))
+)]
+struct Cli {
+    /// Configuration File
+    #[arg(short, long, value_name = "FILE")]
+    config: Option<PathBuf>,
+
+    /// Scaffold a configuration file
+    #[arg(long, value_name = "FILE")]
+    scaffold: Option<PathBuf>,
+
+    /// Do not send emails, show dummy results.
+    #[arg(short, long)]
+    debug: bool,
 }
 
 fn main() -> io::Result<()> {
-    let matches = App::new("Gifts!")
-        .version(crate_version!())
-        .author("Guewen Baconnier <guewen@gmail.com>")
-        .about("Send Secret Emails for Secret-Santa-style events")
-        .setting(AppSettings::ArgRequiredElseHelp)
-        .arg(
-            Arg::with_name("config")
-                .short("c")
-                .long("config")
-                .takes_value(true)
-                .help("Configuration File"),
-        )
-        .arg(
-            Arg::with_name("scaffold")
-                .long("scaffold")
-                .takes_value(true)
-                .help("Scaffold a configuration file"),
-        )
-        .arg(
-            Arg::with_name("debug")
-                .short("d")
-                .long("debug")
-                .help("Do not send emails, show dummy results."),
-        )
-        .get_matches();
+    let cli = Cli::parse();
 
-    if let Some(config) = matches.value_of("config") {
-        let mut file = File::open(config)?;
-        let mut content = String::new();
+    if let Some(config) = cli.config {
         // TODO check duplicate people, maybe change structure
-        file.read_to_string(&mut content)?;
-        let config_file: config::ConfigFile = serde_yaml::from_str(&content).unwrap();
-        generate_pairs_and_send_emails(config_file, matches.is_present("debug"));
-    } else if let Some(output_path) = matches.value_of("scaffold") {
-        scaffold_config_and_create_file(Path::new(output_path))?
+        let content = fs::read_to_string(config)?;
+        let config_file: config::ConfigFile = serde_norway::from_str(&content).unwrap();
+        generate_pairs_and_send_emails(config_file, cli.debug);
+    } else if let Some(output_path) = cli.scaffold {
+        scaffold_config_and_create_file(&output_path)?
     }
 
     Ok(())

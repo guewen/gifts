@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use email::{EmailServer, EmailTemplate};
+use crate::email::{EmailServer, EmailTemplate};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigFile {
